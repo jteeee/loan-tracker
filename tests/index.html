@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Tracker Widget - Test Suite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .test-pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .test-fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .test-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .summary {
+            background: #e2e3e5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Loan Tracker Widget - Test Suite</h1>
+    
+    <div class="test-container">
+        <h2>Test Controls</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="runValidationTests()">Validation Tests</button>
+        <button onclick="runUtilityTests()">Utility Tests</button>
+        <button onclick="runIntegrationTests()">Integration Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div class="stats" id="testStats">
+        <div class="stat-card">
+            <div class="stat-value" id="totalTests">0</div>
+            <div class="stat-label">Total Tests</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="passedTests">0</div>
+            <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="failedTests">0</div>
+            <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="testCoverage">0%</div>
+            <div class="stat-label">Coverage</div>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+    
+    <script type="module">
+        // Import modules for testing
+        import { CONFIG, VALIDATION_RULES, ERROR_MESSAGES } from '../js/config.js';
+        import { ValidationUtils, TransactionValidator, ValidationError } from '../js/validation.js';
+        import { 
+            CurrencyUtils, 
+            DateUtils, 
+            InterestUtils, 
+            StorageUtils, 
+            FileUtils,
+            NotificationUtils 
+        } from '../js/utils.js';
+        
+        // Test framework
+        class TestFramework {
+            constructor() {
+                this.tests = [];
+                this.results = [];
+                this.currentSuite = '';
+            }
+            
+            suite(name) {
+                this.currentSuite = name;
+                this.log(`\n=== ${name} ===`, 'info');
+            }
+            
+            test(name, testFn) {
+                const fullName = this.currentSuite ? `${this.currentSuite}: ${name}` : name;
+                this.tests.push({ name: fullName, fn: testFn });
+            }
+            
+            async run() {
+                this.results = [];
+                let passed = 0;
+                let failed = 0;
+                
+                for (const test of this.tests) {
+                    try {
+                        await test.fn();
+                        this.results.push({ name: test.name, status: 'pass', error: null });
+                        this.log(`✓ ${test.name}`, 'pass');
+                        passed++;
+                    } catch (error) {
+                        this.results.push({ name: test.name, status: 'fail', error: error.message });
+                        this.log(`✗ ${test.name}: ${error.message}`, 'fail');
+                        failed++;
+                    }
+                }
+                
+                this.updateStats(passed, failed);
+                this.log(`\nSummary: ${passed} passed, ${failed} failed`, 'info');
+                return { passed, failed, total: this.tests.length };
+            }
+            
+            log(message, type = 'info') {
+                const resultsDiv = document.getElementById('testResults');
+                const div = document.createElement('div');
+                div.className = `test-result test-${type}`;
+                div.textContent = message;
+                resultsDiv.appendChild(div);
+            }
+            
+            updateStats(passed, failed) {
+                document.getElementById('totalTests').textContent = this.tests.length;
+                document.getElementById('passedTests').textContent = passed;
+                document.getElementById('failedTests').textContent = failed;
+                
+                const coverage = this.tests.length > 0 ? Math.round((passed / this.tests.length) * 100) : 0;
+                document.getElementById('testCoverage').textContent = `${coverage}%`;
+            }
+            
+            clear() {
+                this.tests = [];
+                this.results = [];
+                document.getElementById('testResults').innerHTML = '';
+                this.updateStats(0, 0);
+            }
+            
+            assert(condition, message = 'Assertion failed') {
+                if (!condition) {
+                    throw new Error(message);
+                }
+            }
+            
+            assertEquals(actual, expected, message = '') {
+                if (actual !== expected) {
+                    throw new Error(`${message} Expected: ${expected}, Actual: ${actual}`);
+                }
+            }
+            
+            assertThrows(fn, expectedError = null, message = 'Expected function to throw') {
+                try {
+                    fn();
+                    throw new Error(message);
+                } catch (error) {
+                    if (expectedError && !error.message.includes(expectedError)) {
+                        throw new Error(`Expected error containing "${expectedError}", got: ${error.message}`);
+                    }
+                }
+            }
+        }
+        
+        const test = new TestFramework();
+        
+        // Validation Tests
+        function setupValidationTests() {
+            test.suite('ValidationUtils');
+            
+            test.test('isEmpty should detect empty values', () => {
+                test.assert(ValidationUtils.isEmpty(''));
+                test.assert(ValidationUtils.isEmpty(null));
+                test.assert(ValidationUtils.isEmpty(undefined));
+                test.assert(ValidationUtils.isEmpty([]));
+                test.assert(!ValidationUtils.isEmpty('test'));
+                test.assert(!ValidationUtils.isEmpty(0));
+            });
+            
+            test.test('sanitizeHtml should prevent XSS', () => {
+                const malicious = '<script>alert("xss")</script>';
+                const sanitized = ValidationUtils.sanitizeHtml(malicious);
+                test.assert(!sanitized.includes('<script>'));
+                test.assert(sanitized.includes('&lt;script&gt;'));
+            });
+            
+            test.test('parseDate should validate dates', () => {
+                const validDate = ValidationUtils.parseDate('2023-12-25');
+                test.assert(validDate instanceof Date);
+                
+                test.assertThrows(() => {
+                    ValidationUtils.parseDate('invalid-date');
+                }, 'Invalid date');
+            });
+            
+            test.test('parseAmount should validate amounts', () => {
+                test.assertEquals(ValidationUtils.parseAmount('100.50'), 100.50);
+                test.assertEquals(ValidationUtils.parseAmount('100'), 100);
+                
+                test.assertThrows(() => {
+                    ValidationUtils.parseAmount('invalid');
+                }, 'Invalid amount');
+                
+                test.assertThrows(() => {
+                    ValidationUtils.parseAmount('-10');
+                }, 'too low');
+            });
+            
+            test.test('validateNotes should sanitize and limit length', () => {
+                const result = ValidationUtils.validateNotes('  test note  ');
+                test.assertEquals(result, 'test note');
+                
+                const longNote = 'x'.repeat(600);
+                test.assertThrows(() => {
+                    ValidationUtils.validateNotes(longNote);
+                }, 'too long');
+            });
+            
+            test.suite('TransactionValidator');
+            
+            test.test('should validate complete transaction', () => {
+                const validator = new TransactionValidator();
+                const transaction = {
+                    date: '2023-12-25',
+                    type: 'Loan Out',
+                    amount: '100.00',
+                    notes: 'Test loan'
+                };
+                
+                const isValid = validator.validateTransaction(transaction);
+                test.assert(isValid);
+                test.assert(!validator.hasErrors());
+            });
+            
+            test.test('should detect invalid transaction', () => {
+                const validator = new TransactionValidator();
+                const transaction = {
+                    date: 'invalid',
+                    type: 'Invalid Type',
+                    amount: 'not-a-number',
+                    notes: ''
+                };
+                
+                const isValid = validator.validateTransaction(transaction);
+                test.assert(!isValid);
+                test.assert(validator.hasErrors());
+            });
+        }
+        
+        // Utility Tests
+        function setupUtilityTests() {
+            test.suite('CurrencyUtils');
+            
+            test.test('should format currency correctly', () => {
+                const formatted = CurrencyUtils.format(1234.56);
+                test.assert(formatted.includes('1,234.56'));
+                test.assert(formatted.includes('$'));
+            });
+            
+            test.test('should parse currency strings', () => {
+                test.assertEquals(CurrencyUtils.parse('$1,234.56'), 1234.56);
+                test.assertEquals(CurrencyUtils.parse('1234.56'), 1234.56);
+                test.assertEquals(CurrencyUtils.parse('invalid'), 0);
+            });
+            
+            test.suite('DateUtils');
+            
+            test.test('should format dates correctly', () => {
+                const formatted = DateUtils.format('2023-12-25');
+                test.assert(formatted.includes('Dec'));
+                test.assert(formatted.includes('25'));
+                test.assert(formatted.includes('2023'));
+            });
+            
+            test.test('should calculate days between dates', () => {
+                const days = DateUtils.daysBetween('2023-12-25', '2023-12-30');
+                test.assertEquals(days, 5);
+            });
+            
+            test.test('should format for input', () => {
+                const formatted = DateUtils.formatForInput(new Date('2023-12-25'));
+                test.assertEquals(formatted, '2023-12-25');
+            });
+            
+            test.suite('InterestUtils');
+            
+            test.test('should calculate simple interest', () => {
+                const interest = InterestUtils.calculateSimple(1000, 0.0825, 365);
+                test.assert(Math.abs(interest - 82.5) < 0.01);
+            });
+            
+            test.test('should calculate zero interest for zero principal', () => {
+                const interest = InterestUtils.calculateSimple(0, 0.0825, 365);
+                test.assertEquals(interest, 0);
+            });
+            
+            test.test('should calculate zero interest for zero days', () => {
+                const interest = InterestUtils.calculateSimple(1000, 0.0825, 0);
+                test.assertEquals(interest, 0);
+            });
+            
+            test.suite('StorageUtils');
+            
+            test.test('should save and load data', () => {
+                const testData = { test: 'value', number: 123 };
+                const saved = StorageUtils.save('test-key', testData);
+                test.assert(saved);
+                
+                const loaded = StorageUtils.load('test-key');
+                test.assertEquals(loaded.test, 'value');
+                test.assertEquals(loaded.number, 123);
+                
+                // Cleanup
+                StorageUtils.remove('test-key');
+            });
+            
+            test.test('should handle missing keys gracefully', () => {
+                const result = StorageUtils.load('non-existent-key', 'default');
+                test.assertEquals(result, 'default');
+            });
+        }
+        
+        // Integration Tests
+        function setupIntegrationTests() {
+            test.suite('Integration Tests');
+            
+            test.test('should handle complete transaction workflow', () => {
+                // This would test the full workflow of adding, validating, and processing a transaction
+                const validator = new TransactionValidator();
+                
+                // Create a valid transaction
+                const transaction = {
+                    date: DateUtils.today(),
+                    type: 'Loan Out',
+                    amount: '1000.00',
+                    notes: 'Test loan transaction'
+                };
+                
+                // Validate
+                const isValid = validator.validateTransaction(transaction);
+                test.assert(isValid, 'Transaction should be valid');
+                
+                // Process amounts
+                const amount = ValidationUtils.parseAmount(transaction.amount);
+                test.assertEquals(amount, 1000.00);
+                
+                // Format for display
+                const formatted = CurrencyUtils.format(amount);
+                test.assert(formatted.includes('1,000.00'));
+            });
+            
+            test.test('should handle interest calculations correctly', () => {
+                const principal = 1000;
+                const startDate = '2023-01-01';
+                const endDate = '2023-02-01'; // 31 days
+                
+                const interest = InterestUtils.calculate(principal, startDate, endDate);
+                
+                // Expected: 1000 * (0.0825/365) * 31 ≈ 7.01
+                test.assert(Math.abs(interest - 7.01) < 0.1, `Expected ~7.01, got ${interest}`);
+            });
+            
+            test.test('should handle edge cases gracefully', () => {
+                // Test with extreme values
+                test.assertThrows(() => {
+                    ValidationUtils.parseAmount('999999999999.99');
+                }, 'too high');
+                
+                // Test with negative amounts
+                test.assertThrows(() => {
+                    ValidationUtils.parseAmount('-100');
+                }, 'too low');
+                
+                // Test with future dates (should warn, not error)
+                const validator = new TransactionValidator();
+                const futureTransaction = {
+                    date: '2030-01-01',
+                    type: 'Loan Out',
+                    amount: '100.00',
+                    notes: ''
+                };
+                
+                const isValid = validator.validateTransaction(futureTransaction);
+                test.assert(isValid, 'Future date should be valid but warn');
+                test.assert(validator.hasWarnings(), 'Should have warnings for future date');
+            });
+        }
+        
+        // Global test functions
+        window.runAllTests = async function() {
+            test.clear();
+            setupValidationTests();
+            setupUtilityTests();
+            setupIntegrationTests();
+            return await test.run();
+        };
+        
+        window.runValidationTests = async function() {
+            test.clear();
+            setupValidationTests();
+            return await test.run();
+        };
+        
+        window.runUtilityTests = async function() {
+            test.clear();
+            setupUtilityTests();
+            return await test.run();
+        };
+        
+        window.runIntegrationTests = async function() {
+            test.clear();
+            setupIntegrationTests();
+            return await test.run();
+        };
+        
+        window.clearResults = function() {
+            test.clear();
+        };
+        
+        // Auto-run tests on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            test.log('Test framework initialized. Click "Run All Tests" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>
