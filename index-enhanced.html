@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Robust loan tracking widget with automatic interest calculation, payment tracking, and comprehensive reporting features">
+    <meta name="keywords" content="loan tracker, interest calculator, payment tracking, financial widget">
+    <meta name="author" content="Loan Tracker Widget">
+    
+    <title>Sarah & Deklin Loan Tracker - Robust Financial Widget</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="css/styles.css" as="style">
+    <link rel="preload" href="js/app.js" as="script">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Additional notification styles -->
+    <style>
+        /* Notification system styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            padding: 0;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform var(--transition-normal), opacity var(--transition-normal);
+            opacity: 0;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .notification.hide {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-md) var(--space-lg);
+            color: white;
+            border-radius: var(--radius-md);
+        }
+        
+        .notification-info .notification-content {
+            background: var(--info);
+        }
+        
+        .notification-success .notification-content {
+            background: var(--success);
+        }
+        
+        .notification-warning .notification-content {
+            background: var(--warning);
+            color: var(--gray-900);
+        }
+        
+        .notification-error .notification-content {
+            background: var(--danger);
+        }
+        
+        .notification-icon {
+            flex-shrink: 0;
+        }
+        
+        .notification-message {
+            flex: 1;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: var(--space-xs);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.8;
+            transition: opacity var(--transition-fast);
+        }
+        
+        .notification-close:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Screen reader only content */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Enhanced focus styles */
+        .enhanced-focus:focus {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 5px rgba(91, 33, 182, 0.2);
+        }
+        
+        /* High contrast improvements */
+        @media (prefers-contrast: high) {
+            .type-badge {
+                border: 2px solid currentColor;
+            }
+            
+            .stat-card::before {
+                height: 6px;
+            }
+        }
+        
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .notification {
+                transition: none;
+            }
+            
+            .stat-card {
+                transition: none;
+            }
+            
+            .btn {
+                transition: none;
+            }
+        }
+        
+        /* Print enhancements */
+        @media print {
+            .notification {
+                display: none !important;
+            }
+            
+            .skip-link {
+                display: none !important;
+            }
+            
+            /* Print-specific styling */
+            body {
+                color: black !important;
+                background: white !important;
+            }
+            
+            .header {
+                color: black !important;
+                background: #f0f0f0 !important;
+            }
+            
+            .stat-card,
+            .table-container {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            th, td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip navigation link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div class="app-container" role="application" aria-label="Loan Tracker Widget">
+        <header class="header" role="banner">
+            <h1 id="main-heading">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Sarah & Deklin Loan Tracker
+            </h1>
+            <p>Track loans and repayments with automatic interest calculation at 8.25% APR</p>
+        </header>
+        
+        <main class="content" id="main-content" role="main">
+            <!-- Summary Statistics -->
+            <section class="stats-grid" aria-labelledby="stats-heading" role="region">
+                <h2 id="stats-heading" class="sr-only">Financial Statistics</h2>
+                
+                <div class="stat-card danger" role="group" aria-labelledby="balance-label">
+                    <div class="stat-label" id="balance-label">Current Balance</div>
+                    <div class="stat-value" id="currentBalance" aria-describedby="balance-desc">$0.00</div>
+                    <div class="stat-subtext" id="balanceChange" aria-describedby="balance-desc">No transactions yet</div>
+                    <div id="balance-desc" class="sr-only">Current outstanding balance including accrued interest</div>
+                </div>
+                
+                <div class="stat-card" role="group" aria-labelledby="loaned-label">
+                    <div class="stat-label" id="loaned-label">Total Loaned Out</div>
+                    <div class="stat-value" id="totalLoaned" aria-describedby="loaned-desc">$0.00</div>
+                    <div class="stat-subtext" id="loanCount">0 loans</div>
+                    <div id="loaned-desc" class="sr-only">Total amount loaned out</div>
+                </div>
+                
+                <div class="stat-card success" role="group" aria-labelledby="payments-label">
+                    <div class="stat-label" id="payments-label">Total Payments</div>
+                    <div class="stat-value" id="totalPayments" aria-describedby="payments-desc">$0.00</div>
+                    <div class="stat-subtext" id="paymentCount">0 payments</div>
+                    <div id="payments-desc" class="sr-only">Total amount of payments received</div>
+                </div>
+                
+                <div class="stat-card warning" role="group" aria-labelledby="interest-label">
+                    <div class="stat-label" id="interest-label">Total Interest</div>
+                    <div class="stat-value" id="totalInterest" aria-describedby="interest-desc">$0.00</div>
+                    <div class="stat-subtext" id="effectiveRate">0.00% of principal</div>
+                    <div id="interest-desc" class="sr-only">Total interest calculated</div>
+                </div>
+                
+                <div class="stat-card info" role="group" aria-labelledby="days-label">
+                    <div class="stat-label" id="days-label">Days Active</div>
+                    <div class="stat-value" id="daysActive" aria-describedby="days-desc">0</div>
+                    <div class="stat-subtext" id="dateRange">No activity</div>
+                    <div id="days-desc" class="sr-only">Number of days since first transaction</div>
+                </div>
+            </section>
+            
+            <!-- Add Transaction Form -->
+            <section class="input-section" aria-labelledby="form-heading" role="region">
+                <h2 id="form-heading">Add New Transaction</h2>
+                <form class="input-grid" novalidate aria-describedby="form-instructions">
+                    <div class="form-group">
+                        <label for="transactionDate">Date</label>
+                        <input type="date" 
+                               id="transactionDate" 
+                               name="date"
+                               required 
+                               aria-describedby="date-help"
+                               class="enhanced-focus">
+                        <div id="date-help" class="sr-only">Enter the date when the transaction occurred</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transactionType">Type</label>
+                        <select id="transactionType" 
+                                name="type"
+                                required 
+                                aria-describedby="type-help"
+                                class="enhanced-focus">
+                            <option value="Loan Out">Loan Out</option>
+                            <option value="Payment">Payment</option>
+                        </select>
+                        <div id="type-help" class="sr-only">Select whether this is money being loaned out or a payment received</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transactionAmount">Amount ($)</label>
+                        <input type="number" 
+                               id="transactionAmount" 
+                               name="amount"
+                               step="0.01" 
+                               min="0.01" 
+                               max="999999999.99"
+                               placeholder="0.00" 
+                               required 
+                               aria-describedby="amount-help"
+                               class="enhanced-focus">
+                        <div id="amount-help" class="sr-only">Enter the transaction amount in dollars and cents</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transactionNotes">Notes (Optional)</label>
+                        <input type="text" 
+                               id="transactionNotes" 
+                               name="notes"
+                               placeholder="Add any notes here..." 
+                               maxlength="500"
+                               aria-describedby="notes-help"
+                               class="enhanced-focus">
+                        <div id="notes-help" class="sr-only">Optional notes or description for this transaction</div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="btn btn-primary enhanced-focus" 
+                            aria-describedby="submit-help">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 5v14m-7-7h14"/>
+                        </svg>
+                        Add Transaction
+                    </button>
+                    <div id="submit-help" class="sr-only">Add this transaction to the loan tracker. Keyboard shortcut: Ctrl+Enter</div>
+                </form>
+                
+                <div class="interest-info" role="note" aria-label="Interest calculation information">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>
+                    </svg>
+                    Interest is calculated daily at 8.25% annual rate on the outstanding balance
+                </div>
+                
+                <div id="form-instructions" class="sr-only">
+                    Use this form to add new loan transactions. All fields except notes are required. 
+                    Interest will be automatically calculated based on the outstanding balance and time between transactions.
+                </div>
+            </section>
+            
+            <!-- Transaction History -->
+            <section class="table-container" aria-labelledby="history-heading" role="region">
+                <div class="table-header">
+                    <h2 id="history-heading">Transaction History</h2>
+                    <div id="entryCount" 
+                         role="status" 
+                         aria-live="polite" 
+                         aria-label="Number of transactions"
+                         style="color: var(--gray-600); font-size: 0.875rem;">0 entries</div>
+                </div>
+                
+                <div id="tableContent">
+                    <table role="table" aria-describedby="table-description">
+                        <caption class="sr-only">
+                            Transaction history showing date, type, amount, interest calculations, and running balance
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Amount</th>
+                                <th scope="col">Days</th>
+                                <th scope="col">Interest</th>
+                                <th scope="col">Balance</th>
+                                <th scope="col">Notes</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody">
+                        </tbody>
+                    </table>
+                    
+                    <div class="empty-state" id="emptyState" role="status">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                        <h3>No transactions yet</h3>
+                        <p>Add your first transaction to get started</p>
+                    </div>
+                    
+                    <div id="table-description" class="sr-only">
+                        Table showing all loan transactions with calculated interest and running balance. 
+                        Interest is calculated for the time period between transactions based on the outstanding balance.
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Control Buttons -->
+            <section class="controls-section" aria-labelledby="controls-heading" role="region">
+                <h2 id="controls-heading" class="sr-only">Data Management Controls</h2>
+                
+                <button class="btn btn-secondary enhanced-focus" 
+                        type="button"
+                        aria-describedby="export-help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3"/>
+                    </svg>
+                    Export to Excel
+                </button>
+                <div id="export-help" class="sr-only">Download transaction data as CSV file for Excel. Keyboard shortcut: Ctrl+E</div>
+                
+                <button class="btn btn-secondary enhanced-focus" 
+                        type="button"
+                        aria-describedby="print-help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Print Report
+                </button>
+                <div id="print-help" class="sr-only">Print the current transaction report. Keyboard shortcut: Ctrl+P</div>
+                
+                <button class="btn btn-secondary enhanced-focus" 
+                        type="button"
+                        aria-describedby="save-help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save Data
+                </button>
+                <div id="save-help" class="sr-only">Save a backup of all transaction data. Keyboard shortcut: Ctrl+S</div>
+                
+                <button class="btn btn-secondary enhanced-focus" 
+                        type="button"
+                        aria-describedby="load-help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M22 13V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10c0 1.1.9 2 2 2h8"/>
+                        <path d="m4 8 10 6 10-6"/><path d="m16 22 5-5m0 0-5-5m5 5H10"/>
+                    </svg>
+                    Load Data
+                </button>
+                <div id="load-help" class="sr-only">Load transaction data from a backup file</div>
+                
+                <button class="btn btn-danger enhanced-focus" 
+                        type="button"
+                        aria-describedby="clear-help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Clear All
+                </button>
+                <div id="clear-help" class="sr-only">Delete all transaction data. This action cannot be undone.</div>
+            </section>
+            
+            <!-- Keyboard shortcuts help -->
+            <section class="sr-only" aria-labelledby="shortcuts-heading">
+                <h2 id="shortcuts-heading">Keyboard Shortcuts</h2>
+                <dl>
+                    <dt>Ctrl+Enter</dt>
+                    <dd>Add new transaction</dd>
+                    <dt>Ctrl+S</dt>
+                    <dd>Save data backup</dd>
+                    <dt>Ctrl+E</dt>
+                    <dd>Export to Excel</dd>
+                    <dt>Ctrl+P</dt>
+                    <dd>Print report</dd>
+                    <dt>Alt+A</dt>
+                    <dd>Focus amount field</dd>
+                    <dt>Alt+D</dt>
+                    <dd>Focus date field</dd>
+                    <dt>Alt+N</dt>
+                    <dd>Focus notes field</dd>
+                </dl>
+            </section>
+        </main>
+    </div>
+    
+    <!-- JavaScript Modules -->
+    <script type="module" src="js/app.js"></script>
+    
+    <!-- Fallback for browsers without module support -->
+    <script nomodule>
+        alert('This application requires a modern browser with ES6 module support. Please update your browser.');
+    </script>
+    
+    <!-- Service Worker for PWA functionality (future enhancement) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Service worker registration would go here for PWA functionality
+                console.log('Service worker support detected');
+            });
+        }
+    </script>
+</body>
+</html>
